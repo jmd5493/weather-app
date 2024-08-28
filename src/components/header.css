@@ -1,11 +1,17 @@
 .app-header {
-    background-color: #4CAF50;
-    padding: 20px;
-    color: white;
-    text-align: center;
-    font-size: 24px;
-    font-family: 'Arial', sans-serif;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  }
+  background-color: #4c91af;
+  padding: 20px;
+  color: white;
+  text-align: center;
+  font-size: 24px;
+  font-family: 'Trebuchet MS', sans-serif;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.app-header h1 {
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3); /* Soft shadow for the text */
+  font-weight: normal; /* Optional: Make the font weight lighter for a softer look */
+}
+
 
   

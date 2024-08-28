@@ -4,7 +4,7 @@ import './header.css';  // Import the corresponding CSS file
 function Header() {
   return (
     <header className="app-header">
-      <h1>Weather App</h1>
+      <h1>Weather</h1>
     </header>
   );
 }
