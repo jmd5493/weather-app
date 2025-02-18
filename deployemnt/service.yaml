@@ -9,4 +9,4 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 80
-  type: NodePort # Change to LoadBalancer if deploying on AKS
+  type: ClusterIP # Change to LoadBalancer if deploying on AKS
