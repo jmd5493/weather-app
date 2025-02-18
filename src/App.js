@@ -1,15 +1,15 @@
 import React from 'react';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import Header from './components/header';
-import Search from './components/search';
-import WeatherDisplay from './components/weatherDisplay';
-import './App.css';  // Global styles
+import Search from './components/search.js';
+import Weather from './components/weather.js';
 
 function App() {
+  console.log('App component rendered');
   return (
-    <div className="App">
-      <Header />
-      <Search />
-      <WeatherDisplay />
+    <div>
+      <h1>Welcome to the Weather App</h1>
+      <p>This is the starting page.</p>
     </div>
   );
 }
