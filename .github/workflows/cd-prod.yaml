@@ -1,0 +1,85 @@
+# CD Pipeline - Manual Deploy to Production
+# Purpose: As a platform engineer, you control production releases
+# This requires manual approval and explicit image tag selection
+
+name: CD - Deploy to Prod (Manual)
+
+# Trigger: Manual only via GitHub UI
+# Platform reasoning: Production releases are deliberate decisions
+# You choose exactly what image to deploy (promotes from dev usually)
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Docker image tag to deploy (e.g., 0.1.0, main-abc123)'
+        required: true
+        type: string
+
+jobs:
+  deploy-prod:
+    runs-on: ubuntu-latest
+    
+    # GitHub Environment: Adds optional approval gates
+    # Platform reasoning: Can require manual approval from team before deploy
+    # Configure at: Settings → Environments → production → Required reviewers
+    environment: production
+
+    steps:
+      # Step 1: Get the Helm charts
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Install kubectl
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+
+      # Step 3: Configure cluster access
+      # Same as dev, but accessing prod namespace
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      # Step 4: Install Helm
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'latest'
+
+      # Step 5: Verify image exists before deploying
+      # Platform reasoning: Fail fast if someone typos the tag
+      # Prevents deploying non-existent images to production
+      - name: Verify image exists
+        run: |
+          docker manifest inspect jamesmd1996/weather-app:${{ inputs.image_tag }} > /dev/null 2>&1 || \
+          (echo "Error: Image tag ${{ inputs.image_tag }} does not exist" && exit 1)
+
+      # Step 6: Deploy to production
+      # Platform reasoning:
+      #   - Same Helm chart, different values file (values-prod.yaml)
+      #   - Explicit image tag from manual input
+      #   - Prod config has: more replicas, higher resources, stricter probes
+      - name: Deploy to Prod
+        run: |
+          helm upgrade --install weather-app ./helm/weather-app \
+            --namespace prod \
+            --values ./helm/weather-app/values-prod.yaml \
+            --set image.tag=${{ inputs.image_tag }} \
+            --wait \
+            --timeout 5m
+
+      # Step 7: Verify production deployment
+      # Platform reasoning: Confirm all replicas are healthy before declaring success
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n prod
+          kubectl rollout status deployment/weather-app -n prod
+
+      # Step 8: Deployment summary
+      # Platform reasoning: Clear confirmation of what was deployed
+      # Helps with audit trail and incident response
+      - name: Deployment summary
+        run: |
+          echo "✅ Successfully deployed weather-app:${{ inputs.image_tag }} to production"
+          kubectl get deployment weather-app -n prod

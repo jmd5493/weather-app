@@ -8,8 +8,9 @@ function App() {
   console.log('App component rendered');
   return (
     <div>
-      <h1>Welcome to the Weather App</h1>
-      <p>This is the starting page.</p>
+      <h1>Welcome to the Weather App v2.0! 🌤️</h1>
+      <p>Now with improved platform engineering!</p>
+      <p>Environment: {process.env.NODE_ENV}</p>
     </div>
   );
 }
