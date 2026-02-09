@@ -14,6 +14,6 @@ spec:
     spec:
       containers:
         - name: weather-app
-          image: jamesmd1996/weather-app:latest # Update to match Docker Hub
+          image: jamesmd1996/weather-app:0.1.0 # Update to match Docker Hub
           ports:
             - containerPort: 80
