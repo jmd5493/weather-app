@@ -1,0 +1,91 @@
+# CI Pipeline - Build and Push Docker Image
+# Purpose: As a platform engineer, this automates the build process so developers
+# don't need to build/push images manually. This ensures consistency and traceability.
+
+name: CI Build and Push
+
+# Triggers: When code is merged to main (production builds) or on PRs (testing builds)
+# Platform reasoning: main = releasable artifacts, PRs = validation only (no push)
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+# Environment variables - centralized configuration
+# Makes it easy to change registry or image name across all steps
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: jamesmd1996/weather-app
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    
+    # Permissions: Principle of least privilege
+    # Platform engineers define minimal required permissions for security
+    permissions:
+      contents: read      # Read code from repo
+      packages: write     # Push to container registry
+
+    steps:
+      # Step 1: Get the code
+      # Uses v4 for latest security patches and features
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Docker Buildx
+      # Buildx enables advanced features: multi-platform builds, better caching
+      # Platform reasoning: Faster builds = faster feedback for developers
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Step 3: Log in to Docker registry
+      # Uses GitHub's built-in secrets for secure authentication
+      # Only on main branch (not PRs) - PRs just test the build
+      #Platform reasoning: Secrets shouldn't be exposed to PR builds from forks
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # Step 4: Generate image tags and metadata
+      # Platform reasoning: Consistent tagging strategy is critical for traceability
+      # Tags created:
+      #   - main-abc123 (branch + commit SHA) - for dev deployments
+      #   - main (branch name) - for tracking latest on branch
+      #   - latest (if main branch) - convenience tag
+      #   - semver tags (if you create git tags like v1.0.0)
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix={{branch}}-,format=short
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable={{is_default_branch}}
+# Step 5: Build and push the Docker image
+      # Platform reasoning: This is the artifact that gets deployed
+      # - Uses cache from GitHub Actions for faster builds (gha)
+      # - Only pushes if not a PR (PRs just validate the build works)
+      # - Applies all tags from previous step
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .                                    # Build from repo root
+          push: ${{ github.event_name != 'pull_request' }}  # Only push on main
+          tags: ${{ steps.meta.outputs.tags }}         # Apply all generated tags
+          labels: ${{ steps.meta.outputs.labels }}     # OCI metadata for tracking
+          cache-from: type=gha                         # Use GitHub Actions cache
+          cache-to: type=gha,mode=max                  # Save all layers to cache
+
+      # Step 6: Show what was built
+      # Platform reasoning: Visibility - you need to know what image tag to deploy
+      - name: Output image tags
+        run: echo "Built and pushed ${{ steps.meta.outputs.tags }}"

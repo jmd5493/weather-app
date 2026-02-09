@@ -1,0 +1,81 @@
+# CD Pipeline - Automated Deploy to Dev Environment
+# Purpose: As a platform engineer, dev should always have the latest code
+# Developers get instant feedback, you control the automated pipeline
+
+name: CD - Deploy to Dev
+
+# Trigger: Only after CI pipeline completes successfully
+# Platform reasoning: Don't deploy if build failed, maintain quality gate
+on:
+  workflow_run:
+    workflows: ["CI - Build and Push"]  # Name must match CI workflow
+    types:
+      - completed
+    branches:
+      - main
+
+jobs:
+  deploy-dev:
+    runs-on: ubuntu-latest
+    
+    # Only run if CI was successful
+    # Platform reasoning: Failed builds should never reach any environment
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      # Step 1: Get the Helm charts
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Install kubectl CLI
+      # Platform reasoning: Need to interact with Kubernetes cluster
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+
+      # Step 3: Configure access to your Kubernetes cluster
+      # Platform reasoning: GitHub Actions needs credentials to deploy
+      # KUBECONFIG secret should be base64-encoded kubeconfig file
+      # Security note: In production, use IRSA/Workload Identity instead
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      # Step 4: Install Helm
+      # Platform reasoning: Helm is your release management tool
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'latest'
+
+      # Step 5: Get the commit SHA for image tagging
+      # Platform reasoning: Deploy exactly what was just built in CI
+      # The image tag format matches what CI created: main-{short_sha}
+      - name: Get short SHA
+        id: sha
+        run: echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      # Step 6: Deploy to dev namespace using Helm
+      # Platform reasoning: 
+      #   - upgrade --install = idempotent (create or update)
+      #   - values-dev.yaml = environment-specific config
+      #   - --set image.tag = override with exact image from CI
+      #   - --wait = don't return until rollout succeeds
+      #   - --timeout = fail if rollout takes too long
+      - name: Deploy to Dev
+        run: |
+          helm upgrade --install weather-app ./helm/weather-app \
+            --namespace dev \
+            --values ./helm/weather-app/values-dev.yaml \
+            --set image.tag=main-${{ steps.sha.outputs.short_sha }} \
+            --wait \
+            --timeout 5m
+
+      # Step 7: Verify the deployment succeeded
+      # Platform reasoning: Validate health before marking pipeline as successful
+      # If pods fail readiness checks, this step fails the pipeline
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n dev
+          kubectl rollout status deployment/weather-app -n dev

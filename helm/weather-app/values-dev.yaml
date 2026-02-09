@@ -1,0 +1,38 @@
+replicaCount: 2
+
+image:
+  repository: jamesmd1996/weather-app
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+service:
+  name: weather-app-service
+  type: ClusterIP
+  port: 80
+  targetPort: 80
+
+containerPort: 80
+
+probes:
+  enabled: true
+  readiness:
+    path: /
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 2
+    failureThreshold: 3
+  liveness:
+    path: /
+    initialDelaySeconds: 15
+    periodSeconds: 10
+    timeoutSeconds: 2
+    failureThreshold: 3
+
+resources:
+  enabled: false
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi

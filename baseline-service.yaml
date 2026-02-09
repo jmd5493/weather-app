@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"v1","kind":"Service","metadata":{"annotations":{},"name":"weather-app-service","namespace":"default"},"spec":{"ports":[{"port":80,"protocol":"TCP","targetPort":80}],"selector":{"app":"weather-app"},"type":"ClusterIP"}}
+  creationTimestamp: "2026-02-09T19:03:55Z"
+  name: weather-app-service
+  namespace: default
+  resourceVersion: "727"
+  uid: 8b7b253e-fa92-46b5-9ee9-6f35ff981ba9
+spec:
+  clusterIP: 10.96.134.109
+  clusterIPs:
+  - 10.96.134.109
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+  - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    app: weather-app
+  sessionAffinity: None
+  type: ClusterIP
+status:
+  loadBalancer: {}
